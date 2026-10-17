@@ -41,6 +41,8 @@ npm run deploy:pages -- --project my-vps-calculator
 
 脚本会先运行 `npm run build`，确认 `dist/index.html` 存在后，通过 Wrangler Direct Upload 发布。脚本不会读取或写入 API token。
 
+`main` 分支已接入 GitHub Actions（`.github/workflows/deploy-pages.yml`）：推送后自动运行测试、构建并部署到 Pages。首次使用需在仓库 Secrets 中配置 `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID`，详见部署文档。
+
 ## 汇率与隐私
 
 汇率来自 Frankfurter 公共 API。页面会缓存短时间内的成功响应，并在请求失败时阻止计算。分享数据编码在 URL fragment 中，不写入本工具的服务器；分享链接仍可能被聊天软件或截图保存，请勿填写个人敏感信息。

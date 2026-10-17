@@ -107,7 +107,22 @@ npm run deploy:pages -- --help
 
 本项目不需要配置环境变量。汇率请求在用户浏览器中执行，Cloudflare Pages 只负责托管静态文件。
 
-## 四、绑定自定义域名
+## 四、GitHub Actions 自动部署
+
+仓库内置了 `.github/workflows/deploy-pages.yml`：`main` 分支每次推送时自动运行测试、构建并部署到 Pages，也可以在 Actions 页面用 **Run workflow** 手动触发。
+
+首次使用前配置仓库 Secrets（**Settings → Secrets and variables → Actions**）：
+
+| 名称 | 说明 |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | 具有账户级 **Cloudflare Pages: Edit** 权限的 API Token |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID，可在 Workers & Pages 概览页右侧栏找到 |
+
+可选：在 **Variables** 中配置 `CLOUDFLARE_PAGES_PROJECT` 覆盖默认项目名 `vps-value-calculator`。
+
+创建 Token 的路径：Dashboard → **My Profile → API Tokens → Create Token**，选择 **Edit Cloudflare Workers** 模板，或自定义权限并授予账户级 **Cloudflare Pages: Edit**。Token 只写入 GitHub Secrets，不要提交到仓库。
+
+## 五、绑定自定义域名
 
 部署后进入 Pages 项目：
 
@@ -117,7 +132,7 @@ npm run deploy:pages -- --help
 
 使用 Cloudflare 托管 DNS 时通常可以自动添加记录；使用其他 DNS 服务商时，需要按页面提示添加 CNAME 记录。
 
-## 五、后续更新与回滚
+## 六、后续更新与回滚
 
 ### 手动更新
 
@@ -127,11 +142,15 @@ npm run deploy:pages -- --help
 npm run deploy:pages
 ```
 
+### 自动更新
+
+合并到 `main` 后，GitHub Actions 会自动完成测试、构建与部署，无需本地操作。
+
 ### 控制台回滚
 
 进入 Pages 项目的 **Deployments**，找到目标部署，打开操作菜单并选择 **Rollback**。回滚只切换线上版本，不会删除本地代码。
 
-## 六、常见问题
+## 七、常见问题
 
 ### 缺少项目名
 
@@ -155,7 +174,7 @@ npx wrangler login
 
 部署本身成功并不代表汇率接口可用。页面会在浏览器中请求 Frankfurter；若网络、CORS 或公共接口限流导致请求失败，页面会阻止报价计算。检查浏览器网络访问和 Frankfurter 服务状态后重试。
 
-## 七、安全提示
+## 八、安全提示
 
 - 不要把 `CLOUDFLARE_API_TOKEN`、账户密钥或其他凭据提交到 Git。
 - 分享链接中的报价和 VPS 配置编码在 URL fragment 中，拿到链接的人可以读取这些内容。
