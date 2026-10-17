@@ -41,14 +41,6 @@ npm run deploy:pages -- --project my-vps-calculator
 
 脚本会先运行 `npm run build`，确认 `dist/index.html` 存在后，通过 Wrangler Direct Upload 发布。脚本不会读取或写入 API token。
 
-## Cloudflare Worker 静态资源
-
-`wrangler.jsonc` 已将 `dist/` 配置为静态资源目录并启用 SPA fallback。构建后可运行：
-
-```bash
-npx wrangler deploy
-```
-
 ## 汇率与隐私
 
 汇率来自 Frankfurter 公共 API。页面会缓存短时间内的成功响应，并在请求失败时阻止计算。分享数据编码在 URL fragment 中，不写入本工具的服务器；分享链接仍可能被聊天软件或截图保存，请勿填写个人敏感信息。
