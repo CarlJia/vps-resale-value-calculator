@@ -41,6 +41,18 @@ export function closeCurrencyComboboxes(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('[data-combobox]').forEach((container) => closeCombobox(container, false));
 }
 
+/** 程序化写回币种（fillForm 复位、分享链接还原）后，把触发框的可读名称同步成当前代码。 */
+export function syncCurrencyComboboxLabels(root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('[data-combobox]').forEach((container) => syncTriggerLabel(container));
+}
+
+function syncTriggerLabel(container: HTMLElement): void {
+  const trigger = container.querySelector<HTMLInputElement>('.combobox-trigger');
+  if (!trigger) return;
+  const labelText = container.querySelector('.field-label')?.textContent ?? '';
+  trigger.setAttribute('aria-label', `${labelText}，已选 ${trigger.value}`);
+}
+
 function closeCombobox(container: HTMLElement, focusTrigger: boolean): void {
   const popup = container.querySelector<HTMLElement>('.combobox-popup');
   const search = container.querySelector<HTMLInputElement>('.combobox-search');
@@ -62,7 +74,6 @@ function bindCombobox(container: HTMLElement): void {
   if (!trigger || !popup || !search || !emptyHint) return;
 
   const items = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
-  const labelText = container.querySelector('.field-label')?.textContent ?? '';
   let composing = false;
 
   const isOpen = () => !popup.classList.contains('hidden');
@@ -105,7 +116,7 @@ function bindCombobox(container: HTMLElement): void {
     const code = item.dataset.code;
     if (!code) return;
     trigger.value = code;
-    trigger.setAttribute('aria-label', `${labelText}，已选 ${code}`);
+    syncTriggerLabel(container);
     closeCombobox(container, true);
     trigger.dispatchEvent(new Event('change', { bubbles: true }));
   };

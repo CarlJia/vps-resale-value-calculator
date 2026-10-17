@@ -5,6 +5,7 @@ import { validateInput } from './domain/validation';
 import { fetchRequiredRates, ExchangeRateError } from './services/exchange-rate';
 import { decodeSharePayload, encodeSharePayload } from './services/share-codec';
 import { buildMarkdown, downloadBlob, downloadQuoteImage } from './services/export';
+import { bindCurrencyComboboxes } from './ui/combobox';
 import { fillForm, readForm, renderForm, updateFeeModeVisibility } from './ui/form';
 import { renderResult } from './ui/result';
 
@@ -20,10 +21,20 @@ const defaultInput = (): CalculatorInput => ({
 
 const editView = `<section class="input-panel">${renderForm()}</section><section id="result-container" class="result-container"><div class="empty-result"><span>报价结果</span><strong>填写左侧信息后开始计算</strong><p>结果、手续费明细与分享操作会固定显示在这里。</p></div></section>`;
 const shareView = `<section class="share-view"><div class="share-view-heading"><p class="eyebrow">VPS RESALE RESULT</p><h1>报价结果</h1><span class="readonly-banner">分享结果 · 只读展示</span></div><section id="result-container" class="result-container"><div class="empty-result"><span>报价结果</span><strong>正在加载报价</strong><p>汇率获取成功后会显示完整结果。</p></div></section></section>`;
+
+/** 汇率未就位时的结果区占位：换走旧币种的金额与导出入口，只留状态与恢复动作。 */
+function showRatesPlaceholder(state: 'loading' | 'error'): void {
+  const container = document.querySelector('#result-container');
+  if (!container) return;
+  const title = state === 'loading' ? '正在获取汇率' : '汇率获取失败';
+  const hint = state === 'loading' ? '汇率返回后会显示完整报价。' : '重新选择任一币种，或点击重置，即可重新获取汇率。';
+  container.innerHTML = `<div class="empty-result"><span>报价结果</span><strong>${title}</strong><p>${hint}</p></div>`;
+}
 const editPage = `<header class="site-header"><div class="brand-mark">V</div><div><strong>VPS 价值计算器</strong><span>转售报价工作台</span></div><a href="https://www.frankfurter.app/" target="_blank" rel="noreferrer">汇率来源</a></header><main class="page-shell"><section class="intro"><div><p class="eyebrow">VPS RESALE TOOL / 2026</p><h1>把剩余价值，<em>算成一份报价。</em></h1><p>输入续费周期、折损与 Push 手续费，实时得到可解释的转售价格。所有数据只留在浏览器里。</p></div><div class="intro-rule"><span></span><small>单台 VPS · 无需登录</small></div></section><div id="alert" class="alert" role="status" aria-live="polite"></div><div class="workspace">${editView}</div></main><footer><span>纯前端运行 · 分享链接不经过服务器存储</span><a href="https://www.frankfurter.app/" target="_blank" rel="noreferrer">Frankfurter 汇率服务</a></footer>`;
 const sharePage = `<main class="share-page">${shareView}</main>`;
 app.innerHTML = shared ? sharePage : editPage;
 app.classList.toggle('share-mode', Boolean(shared));
+bindCurrencyComboboxes(app);
 
 const alertBox = document.querySelector<HTMLDivElement>('#alert');
 const rateStatus = document.querySelector<HTMLSpanElement>('#rate-status');
@@ -69,6 +80,7 @@ async function loadRates(): Promise<void> {
   rateTime = '';
   (window as Window & { __rates?: unknown }).__rates = undefined;
   updateRenewalCny();
+  showRatesPlaceholder('loading');
   if (rateStatus) { rateStatus.textContent = '正在获取汇率'; rateStatus.className = 'status-chip loading'; }
   try {
     const rates = await fetchRequiredRates(input.renewalCurrency, input.pushFeeCurrency);
@@ -82,6 +94,7 @@ async function loadRates(): Promise<void> {
     void calculateAndRender();
   } catch (error) {
     if (requestId !== ratesRequestId) return;
+    showRatesPlaceholder('error');
     if (rateStatus) { rateStatus.textContent = '汇率获取失败'; rateStatus.className = 'status-chip error'; }
     setAlert(error instanceof ExchangeRateError ? error.message : '无法获取汇率，请稍后重试', 'error');
   }
