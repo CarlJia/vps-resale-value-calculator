@@ -129,12 +129,58 @@ async function calculateAndRender(showMessage = false): Promise<boolean> {
   } catch (error) { if (showMessage) setAlert(error instanceof Error ? error.message : '输入数据无效', 'error'); return false; }
 }
 
+/** 点击后的就地反馈：按钮文案切换两秒再复位，免得反馈只落在顶部的提示条上（分享页连提示条都没有）。 */
+function flashButton(button: Element | null, text: string, ok: boolean): void {
+  if (!(button instanceof HTMLElement)) return;
+  const label = button.dataset.label ?? button.textContent ?? '';
+  button.dataset.label = label;
+  button.textContent = text;
+  button.classList.toggle('done', ok);
+  button.classList.toggle('failed', !ok);
+  window.setTimeout(() => {
+    if (button.textContent !== text) return; // 期间又点了一次，让那次自己的计时器负责复位
+    button.textContent = label;
+    button.classList.remove('done', 'failed');
+  }, 2000);
+}
+
+/** 编辑视图沿用顶部提示条；分享视图没有 #alert，反馈落到结果区自己的状态区，否则点了没反应。 */
+function announce(message: string, kind: 'error' | 'success' | ''): void {
+  if (alertBox) { setAlert(message, kind); return; }
+  const status = document.querySelector<HTMLElement>('#action-status');
+  if (status) status.textContent = message;
+}
+
 function bindResultActions(): void {
   if (!lastInput || !lastQuote) return;
   const input = lastInput; const quote = lastQuote; const markdown = buildMarkdown(input, quote, rateTime); (document.querySelector('#markdown-output') as HTMLTextAreaElement).value = markdown;
-  document.querySelector('#share-button')?.addEventListener('click', async () => { const hash = encodeSharePayload(input); const shareUrl = `${window.location.origin}${window.location.pathname}${hash}`; if (hash.length > 12000) { setAlert('分享数据过长，请改用图片或 Markdown', 'error'); return; } history.replaceState(null, '', shareUrl); try { await navigator.clipboard.writeText(shareUrl); setAlert('分享链接已复制', 'success'); } catch { setAlert(`分享链接已生成：${shareUrl}`, 'success'); } });
-  document.querySelector('#markdown-button')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(markdown); setAlert('Markdown 已复制', 'success'); } catch { downloadBlob(new Blob([markdown], { type: 'text/markdown;charset=utf-8' }), 'vps报价.md'); setAlert('剪贴板不可用，已下载 Markdown 文件', 'success'); } });
-  document.querySelector('#image-button')?.addEventListener('click', async () => { try { await downloadQuoteImage(input, quote, rateTime); setAlert('报价图片已下载', 'success'); } catch (error) { setAlert(error instanceof Error ? error.message : '图片导出失败，可使用 Markdown', 'error'); } });
+  const shareButton = document.querySelector('#share-button');
+  const imageButton = document.querySelector('#image-button');
+  const markdownButton = document.querySelector('#markdown-button');
+
+  shareButton?.addEventListener('click', async () => {
+    const hash = encodeSharePayload(input);
+    const shareUrl = `${window.location.origin}${window.location.pathname}${hash}`;
+    if (hash.length > 12000) { flashButton(shareButton, '数据过长', false); announce('分享数据过长，请改用图片或 Markdown', 'error'); return; }
+    history.replaceState(null, '', shareUrl);
+    try { await navigator.clipboard.writeText(shareUrl); flashButton(shareButton, '已复制链接', true); announce('分享链接已复制', 'success'); }
+    catch { flashButton(shareButton, '链接已生成', true); announce(`分享链接已生成：${shareUrl}`, 'success'); }
+  });
+
+  markdownButton?.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(markdown); flashButton(markdownButton, '已复制 Markdown', true); announce('Markdown 已复制', 'success'); }
+    catch {
+      try {
+        downloadBlob(new Blob([markdown], { type: 'text/markdown;charset=utf-8' }), 'vps报价.md');
+        flashButton(markdownButton, '已下载 .md', true); announce('剪贴板不可用，已下载 Markdown 文件', 'success');
+      } catch { flashButton(markdownButton, '导出失败', false); announce('Markdown 导出失败，请改用图片或手动复制', 'error'); }
+    }
+  });
+
+  imageButton?.addEventListener('click', async () => {
+    try { await downloadQuoteImage(input, quote, rateTime); flashButton(imageButton, '图片已下载', true); announce('报价图片已下载', 'success'); }
+    catch (error) { flashButton(imageButton, '导出失败', false); announce(error instanceof Error ? error.message : '图片导出失败，可使用 Markdown', 'error'); }
+  });
 }
 
 calculatorForm?.addEventListener('submit', (event) => { event.preventDefault(); void calculateAndRender(true); });

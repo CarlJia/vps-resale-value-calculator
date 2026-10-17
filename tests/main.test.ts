@@ -29,6 +29,9 @@ const commitCurrency = (id: string, query: string) => {
   search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 };
 
+const stubClipboard = (writeText: (text: string) => Promise<void>) =>
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
 async function boot(hash = '', fetchImpl?: () => Promise<Response>) {
   window.location.hash = hash;
   document.body.innerHTML = '<div id="app"></div>';
@@ -50,6 +53,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
   vi.unstubAllGlobals();
   vi.resetModules();
 });
@@ -178,5 +182,83 @@ describe('表单与汇率的接线', () => {
     commitCurrency('renewal-currency', 'tw');
 
     expect(document.getElementById('balance-currency')!.textContent).toBe('TWD');
+  });
+});
+
+describe('导出按钮的点击反馈', () => {
+  const buttonOf = (id: string) => document.getElementById(id) as HTMLButtonElement;
+
+  it('复制分享链接、复制 Markdown 都就地变成已复制，图片失败也有明确反馈', async () => {
+    const fetchMock = await boot();
+    await settle(fetchMock);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubClipboard(writeText);
+
+    const share = buttonOf('share-button');
+    const markdown = buttonOf('markdown-button');
+    const image = buttonOf('image-button');
+
+    share.click();
+    await vi.waitFor(() => expect(share.textContent).toBe('已复制链接'));
+    expect(share.classList.contains('done')).toBe(true);
+    expect(document.getElementById('alert')!.textContent).toContain('分享链接已复制');
+
+    markdown.click();
+    await vi.waitFor(() => expect(markdown.textContent).toBe('已复制 Markdown'));
+    expect(markdown.classList.contains('done')).toBe(true);
+    expect(writeText).toHaveBeenCalledTimes(2);
+
+    // jsdom 没有 canvas，图片导出必然失败；这里要的是「失败也不能没反应」，不是图片本身。
+    image.click();
+    await vi.waitFor(() => expect(image.textContent).toBe('导出失败'));
+    expect(image.classList.contains('failed')).toBe(true);
+    expect(document.getElementById('alert')!.textContent).not.toBe('');
+  });
+
+  it('分享视图没有顶部提示条，反馈也落在结果区自己的状态区', async () => {
+    await boot(encodeSharePayload(input));
+    await vi.waitFor(() => expect(document.querySelector('#result-panel')).not.toBeNull());
+    stubClipboard(vi.fn().mockResolvedValue(undefined));
+
+    const markdown = buttonOf('markdown-button');
+    markdown.click();
+
+    await vi.waitFor(() => expect(document.getElementById('action-status')!.textContent).toBe('Markdown 已复制'));
+    expect(markdown.textContent).toBe('已复制 Markdown');
+    expect(document.querySelector('#alert')).toBeNull();
+  });
+
+  it('就地反馈两秒后复位成原始文案', async () => {
+    vi.useFakeTimers();
+    try {
+      await boot();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(document.querySelector('#result-panel')).not.toBeNull();
+      stubClipboard(vi.fn().mockResolvedValue(undefined));
+      const markdown = buttonOf('markdown-button');
+
+      markdown.click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(markdown.textContent).toBe('已复制 Markdown');
+
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(markdown.textContent).toBe('已复制 Markdown');
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(markdown.textContent).toBe('复制 Markdown');
+      expect(markdown.classList.contains('done')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('旧分享链接缺账户余额时按 0 计入，页面与 Markdown 里都不出现 NaN', async () => {
+    // 载荷里没有 accountBalance，等同早于余额字段的旧链接。
+    await boot(encodeSharePayload(input));
+    await vi.waitFor(() => expect(document.querySelector('#result-panel')).not.toBeNull());
+
+    expect(document.querySelector('#result-panel')!.textContent).toContain('¥0.00（0.00 USD）');
+    expect(document.body.textContent).not.toContain('NaN');
+    expect((document.getElementById('markdown-output') as HTMLTextAreaElement).value).not.toContain('NaN');
   });
 });

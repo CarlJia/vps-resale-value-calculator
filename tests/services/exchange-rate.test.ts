@@ -56,6 +56,25 @@ describe('Frankfurter v2 汇率适配器', () => {
     await expect(fetchToCny('VEF')).rejects.toThrow('VEF');
   });
 
+  it('200 但响应不是数组时归为格式无效，而不是让用户换币种', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: 'not an array' }), { status: 200 })));
+
+    const { fetchToCny, ExchangeRateError, UnsupportedCurrencyError } = await loadAdapter();
+
+    await expect(fetchToCny('USD')).rejects.toThrow('汇率响应格式无效');
+    await expect(fetchToCny('USD')).rejects.not.toBeInstanceOf(UnsupportedCurrencyError);
+    await expect(fetchToCny('USD')).rejects.toBeInstanceOf(ExchangeRateError);
+  });
+
+  it('200 但汇率是 0 时同样归为格式无效', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(arrayResponse(0)));
+
+    const { fetchToCny, UnsupportedCurrencyError } = await loadAdapter();
+
+    await expect(fetchToCny('USD')).rejects.toThrow('汇率响应格式无效');
+    await expect(fetchToCny('USD')).rejects.not.toBeInstanceOf(UnsupportedCurrencyError);
+  });
+
   it('其余 HTTP 失败维持原文案', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 500 })));
 

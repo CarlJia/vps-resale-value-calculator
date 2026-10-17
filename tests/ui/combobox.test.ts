@@ -80,6 +80,41 @@ describe('币种下拉组件', () => {
     expect(isOpen('renewal-currency')).toBe(true);
   });
 
+  it('高亮在首尾两端夹取：末项再向下、首项再向上都停在原地', () => {
+    mount();
+    triggerOf('renewal-currency').click();
+
+    press('renewal-currency', 'ArrowUp');
+    expect(activeOf('renewal-currency')?.dataset.code).toBe('ZWG');
+    press('renewal-currency', 'ArrowDown');
+    expect(activeOf('renewal-currency')?.dataset.code).toBe('ZWG');
+
+    type('renewal-currency', 'tw'); // 只剩一项时首项即末项，两个方向都不能越界
+    press('renewal-currency', 'ArrowDown');
+    expect(activeOf('renewal-currency')?.dataset.code).toBe('TWD');
+    press('renewal-currency', 'ArrowUp');
+    expect(activeOf('renewal-currency')?.dataset.code).toBe('TWD');
+  });
+
+  it('组合期被关闭弹层打断后不再粘住，重新展开键盘照常可用', () => {
+    const { onChange } = mount();
+    triggerOf('renewal-currency').click();
+
+    // 输入法还没结束就失去焦点（组合期的按键本身留给输入法，这里走的是关闭路径）：
+    // 若组合标志留在原处，此后键盘会一直失效。
+    searchOf('renewal-currency').dispatchEvent(new Event('compositionstart', { bubbles: true }));
+    searchOf('renewal-currency').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+    expect(isOpen('renewal-currency')).toBe(false);
+
+    triggerOf('renewal-currency').click();
+    type('renewal-currency', 'tw');
+    expect(codesOf('renewal-currency')).toEqual(['TWD']);
+
+    commits('renewal-currency');
+    expect(triggerOf('renewal-currency').value).toBe('TWD');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it('回车提交高亮的候选后写回 3 位大写代码并派发一次 change', () => {
     const { onChange } = mount();
     triggerOf('renewal-currency').click();

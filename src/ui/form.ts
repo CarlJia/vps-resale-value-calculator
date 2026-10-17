@@ -39,8 +39,6 @@ export function renderForm(): string {
   </form>`;
 }
 
-const ids: Array<keyof CalculatorInput> = ['renewalAmount', 'renewalCurrency', 'paymentCycleMonths', 'tradeDate', 'expiryDate', 'discountRate', 'salePrice', 'premiumAmount', 'pushFeeAmount', 'pushFeeCurrency', 'provider', 'productName', 'highlight', 'cpu', 'memory', 'memoryUnit', 'storage', 'storageUnit', 'bandwidth', 'bandwidthUnit', 'traffic', 'trafficUnit', 'trafficResetCycle', 'trafficDirection', 'location'];
-
 export function readForm(): CalculatorInput {
   const get = (id: string) => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
   const currency = (id: string) => normalizeCurrencyCode(get(id)) ?? '';

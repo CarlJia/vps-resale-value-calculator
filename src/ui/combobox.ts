@@ -1,3 +1,5 @@
+import { escapeHtml } from './escape';
+
 export interface CurrencyComboboxOption { code: string; label: string }
 
 export interface CurrencyComboboxConfig {
@@ -6,9 +8,6 @@ export interface CurrencyComboboxConfig {
   value: string;
   options: readonly CurrencyComboboxOption[];
 }
-
-const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (char) => HTML_ESCAPES[char] ?? char);
 
 /** 触发框的可读名称：初始渲染与程序化写回都必须经过这里，否则两处文案会分叉。 */
 const triggerAriaLabel = (label: string, value: string) => `${label}，已选 ${value}`;
@@ -60,13 +59,15 @@ function closeCombobox(container: HTMLElement, focusTrigger: boolean): void {
   const popup = container.querySelector<HTMLElement>('.combobox-popup');
   const search = container.querySelector<HTMLInputElement>('.combobox-search');
   if (!popup || !search) return;
+  // 组合期标志挂在容器上而不是闭包里：关闭路径也必须能清掉它，否则被打断的组合会让键盘永久失灵。
+  delete container.dataset.composing;
   if (popup.classList.contains('hidden')) return;
   popup.classList.add('hidden');
   search.value = '';
   search.setAttribute('aria-expanded', 'false');
   search.removeAttribute('aria-activedescendant');
   container.querySelectorAll<HTMLElement>('[role="option"]').forEach((item) => item.setAttribute('aria-selected', 'false'));
-  if (focusTrigger) container.querySelector<HTMLInputElement>('.combobox-trigger')?.focus();
+  if (focusTrigger) container.querySelector<HTMLInputElement>('.combobox-trigger')?.focus({ preventScroll: true });
 }
 
 function bindCombobox(container: HTMLElement): void {
@@ -77,7 +78,7 @@ function bindCombobox(container: HTMLElement): void {
   if (!trigger || !popup || !search || !emptyHint) return;
 
   const items = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
-  let composing = false;
+  const composing = () => container.dataset.composing === '1';
 
   const isOpen = () => !popup.classList.contains('hidden');
   const visibleItems = () => items.filter((item) => !item.classList.contains('hidden'));
@@ -142,12 +143,12 @@ function bindCombobox(container: HTMLElement): void {
   });
 
   // 输入法组合期：确认候选字的回车必须留给输入法，否则会把当时高亮的币种写回字段。
-  search.addEventListener('compositionstart', () => { composing = true; });
-  search.addEventListener('compositionend', () => { composing = false; applyFilter(search.value); });
+  search.addEventListener('compositionstart', () => { container.dataset.composing = '1'; });
+  search.addEventListener('compositionend', () => { delete container.dataset.composing; applyFilter(search.value); });
   // 搜索框不是表单字段：筛选文本若冒泡到表单的 input 监听，每敲一个字都会重算并重建整个结果区。
-  search.addEventListener('input', (event) => { event.stopPropagation(); if (!composing) applyFilter(search.value); });
+  search.addEventListener('input', (event) => { event.stopPropagation(); if (!composing()) applyFilter(search.value); });
   search.addEventListener('keydown', (event) => {
-    if (composing || event.isComposing) return;
+    if (composing() || event.isComposing) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
