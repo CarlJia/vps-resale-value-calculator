@@ -6,31 +6,44 @@ export function buildMarkdown(input: CalculatorInput, quote: QuoteResult, rateTi
     ['商家', input.provider], ['产品', input.productName], ['特色', input.highlight], ['CPU', input.cpu], ['内存', input.memory],
     ['存储', input.storage ? `${input.storage} ${input.storageUnit ?? 'GB'}` : ''], ['带宽', input.bandwidth ? `${input.bandwidth} ${input.bandwidthUnit ?? 'Mbps'}` : ''], ['流量', input.traffic ? `${input.traffic} ${input.trafficUnit ?? 'TB'}（${input.trafficDirection === 'single' ? '单向' : '双向'}，${input.trafficResetCycle === 'yearly' ? '每年重置' : input.trafficResetCycle === 'none' ? '不重置' : '每月重置'}）` : ''], ['位置', input.location],
   ].filter(([, value]) => value);
-  const lines = ['## VPS 转售报价', ''];
+  // 顶部先抛一个醒目的买家总价，再切到明细：接收方先看到「该付多少」，再回头理解构成。
+  const lines: string[] = [
+    '## VPS 转售报价',
+    '',
+    `> ### 💰 买家总支付：**${formatCny(quote.buyerTotal)}**`,
+    '>',
+    `> 卖家到手价同为 **${formatCny(quote.sellerNet)}**（双方金额相等 · 剩余价值 + 手动溢价 + 计入总价的手续费 + 账户余额）。`,
+    '',
+  ];
+  // 三张表格对应原来的三个块：信息 / 价值 / 明细。表头写在数据之前，方便阅读器渲染对齐。
+  const tableDivider = '| --- | --- |';
   if (config.length) {
-    lines.push('**VPS 信息**', ...config.map(([label, value]) => `- ${label}：${value}`), '');
+    lines.push('### VPS 信息', '', '| 项目 | 内容 |', tableDivider);
+    for (const [label, value] of config) lines.push(`| ${label} | ${value} |`);
+    lines.push('');
   }
   lines.push(
-    '**价值信息**',
-    `- 交易日期：${input.tradeDate}`,
-    `- 到期日期：${input.expiryDate}`,
-    `- 剩余天数：${quote.remainingDays} 天`,
-    `- 理论剩余价值：${formatCny(quote.theoreticalValue)}`,
-    `- 折损率：${quote.discountRate.toFixed(1)}%`,
-    `- 折损后建议价：${formatCny(quote.adjustedValue)}`,
+    '### 价值信息', '', '| 项目 | 数值 |', tableDivider,
+    `| 交易日期 | ${input.tradeDate} |`,
+    `| 到期日期 | ${input.expiryDate} |`,
+    `| 剩余天数 | ${quote.remainingDays} 天 |`,
+    `| 理论剩余价值 | ${formatCny(quote.theoreticalValue)} |`,
+    `| 折损率 | ${quote.discountRate.toFixed(1)}% |`,
+    `| 折损后建议价 | ${formatCny(quote.adjustedValue)} |`,
     '',
-    '**报价明细**',
-    `- 剩余价值：${formatCny(quote.baseSalePrice)}`,
-    `- 手动溢价：${formatCny(quote.premiumAmount)}`,
-    `- Push 手续费：${formatCny(quote.pushFeeCny)}`,
-    `- 卖家承担比例：${quote.sellerFeeRate.toFixed(1)}%`,
-    `- 计入总价的手续费：${formatCny(quote.includedPushFee)}`,
-    `- 账户余额：${formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)}`,
-    `- 买家总支付：${formatCny(quote.buyerTotal)}`,
-    `- 卖家到手价：${formatCny(quote.sellerNet)}`,
-    `- 溢价：${quote.premium >= 0 ? '+' : ''}${formatCny(quote.premium)}（${quote.premiumRate.toFixed(1)}%）`,
+    '### 报价明细', '', '| 项目 | 金额 |', tableDivider,
+    `| 剩余价值 | ${formatCny(quote.baseSalePrice)} |`,
+    `| 手动溢价 | ${formatCny(quote.premiumAmount)} |`,
+    `| Push 手续费 | ${formatCny(quote.pushFeeCny)} |`,
+    `| 卖家承担比例 | ${quote.sellerFeeRate.toFixed(1)}% |`,
+    `| 计入总价的手续费 | ${formatCny(quote.includedPushFee)} |`,
+    `| 账户余额 | ${formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)} |`,
+    // 明细里再把买家总价整行加粗，与顶部摘要呼应，避免只有顶部一眼看不到的「¥xx」。
+    `| **买家总支付** | **${formatCny(quote.buyerTotal)}** |`,
+    `| 卖家到手价 | ${formatCny(quote.sellerNet)} |`,
+    `| 溢价 | ${quote.premium >= 0 ? '+' : ''}${formatCny(quote.premium)}（${quote.premiumRate.toFixed(1)}%）|`,
     '',
-    `- 汇率更新时间：${new Date(rateTime).toLocaleString('zh-CN')}`,
+    `> 汇率更新时间：${new Date(rateTime).toLocaleString('zh-CN')}`,
   );
   return lines.join('\n');
 }

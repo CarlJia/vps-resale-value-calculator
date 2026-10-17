@@ -18,21 +18,35 @@ describe('导出', () => {
     const withBalance: CalculatorInput = { ...input, accountBalance: 10 };
     const markdown = buildMarkdown(withBalance, calculateQuote(withBalance, rates), rateTime);
 
-    expect(markdown).toContain('- 账户余额：¥70.00（10.00 USD）');
+    expect(markdown).toContain('| 账户余额 | ¥70.00（10.00 USD） |');
     // 位置固定在「计入总价的手续费」之后、「买家总支付」之前。
     const lines = markdown.split('\n');
-    const balanceIndex = lines.indexOf('- 账户余额：¥70.00（10.00 USD）');
-    expect(balanceIndex).toBeGreaterThan(lines.findIndex((line) => line.startsWith('- 计入总价的手续费：')));
-    expect(balanceIndex).toBeLessThan(lines.findIndex((line) => line.startsWith('- 买家总支付：')));
+    const balanceIndex = lines.findIndex((line) => line.startsWith('| 账户余额 |'));
+    const includedIndex = lines.findIndex((line) => line.startsWith('| 计入总价的手续费 |'));
+    const buyerIndex = lines.findIndex((line) => line.startsWith('| **买家总支付** |'));
+    expect(balanceIndex).toBeGreaterThan(includedIndex);
+    expect(balanceIndex).toBeLessThan(buyerIndex);
   });
 
   it('余额为 0 时仍输出账户余额行，且格式与相邻明细行一致', () => {
     const quote = calculateQuote({ ...input, accountBalance: 0 }, rates);
     const markdown = buildMarkdown(input, quote, rateTime);
 
-    expect(markdown).toContain('- 账户余额：¥0.00（0.00 USD）');
-    // 与其它明细行同样是「- 标签：值」的单行条目。
-    expect(markdown).toMatch(/^- 账户余额：¥\d+\.\d{2}（\d+\.\d{2} [A-Z]{3}）$/m);
+    expect(markdown).toContain('| 账户余额 | ¥0.00（0.00 USD） |');
+    // 与其它明细行同样是「| 标签 | 值 |」的单元格。
+    expect(markdown).toMatch(/^\| 账户余额 \| ¥\d+\.\d{2}（\d+\.\d{2} [A-Z]{3}） \|$/m);
+  });
+
+  it('买家总支付在 Markdown 顶部以醒目摘要呈现，并在明细表里整行加粗', () => {
+    const quote = calculateQuote({ ...input, accountBalance: 10 }, rates);
+    const markdown = buildMarkdown(input, quote, rateTime);
+
+    // 顶部摘要：「## 标题之后，紧接着看到买家总支付」，让接受方第一眼就能读到金额。
+    expect(markdown).toMatch(/^## VPS 转售报价\n\n> ### 💰 买家总支付：\*\*¥\d+\.\d{2}\*\*$/m);
+    // 顶部摘要里也提示「卖家到手价与买家总支付相等」，避免把双方金额当成两笔。
+    expect(markdown).toContain('卖家到手价同为 **¥');
+    // 明细表里的「买家总支付」整行加粗（标签与值两侧都有 **）。
+    expect(markdown).toContain('| **买家总支付** | **¥');
   });
 
   it('缺少 2D 上下文时图片导出抛出中文错误', async () => {
