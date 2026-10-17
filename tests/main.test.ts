@@ -17,6 +17,7 @@ const ratesResponse = (rate: number, base: string) => new Response(
 
 const triggerOf = (id: string) => document.getElementById(id) as HTMLInputElement;
 const searchOf = (id: string) => document.getElementById(`${id}-search`) as HTMLInputElement;
+const popupOf = (id: string) => document.getElementById(`${id}-popup`) as HTMLElement;
 const resultContainer = () => document.querySelector<HTMLElement>('#result-container')!;
 
 const commitCurrency = (id: string, query: string) => {
@@ -118,5 +119,36 @@ describe('表单与汇率的接线', () => {
     expect(document.querySelector('#renewal-currency')).toBeNull();
     expect(document.body.textContent).toContain('东京套餐');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('重置会关掉开着的币种弹层，并把余额与续费币种恢复默认', async () => {
+    const fetchMock = await boot();
+    await settle(fetchMock);
+
+    commitCurrency('renewal-currency', 'tw');
+    const balance = document.getElementById('account-balance') as HTMLInputElement;
+    balance.value = '12.5';
+    balance.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // 刻意在弹层打开的状态下复位：这样「弹层关闭」才是被复位动作保证的，而不是提交币种时顺手关掉的。
+    triggerOf('renewal-currency').click();
+    expect(popupOf('renewal-currency').classList.contains('hidden')).toBe(false);
+
+    document.getElementById('reset-button')!.click();
+
+    expect(balance.value).toBe('0');
+    expect(popupOf('renewal-currency').classList.contains('hidden')).toBe(true);
+    expect(triggerOf('renewal-currency').value).toBe('USD');
+    expect(document.getElementById('balance-currency')!.textContent).toBe('USD');
+  });
+
+  it('续费币种提交后，余额币种提示立即跟随', async () => {
+    const fetchMock = await boot();
+    await settle(fetchMock);
+    expect(document.getElementById('balance-currency')!.textContent).toBe('USD');
+
+    commitCurrency('renewal-currency', 'tw');
+
+    expect(document.getElementById('balance-currency')!.textContent).toBe('TWD');
   });
 });

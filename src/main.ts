@@ -5,7 +5,7 @@ import { validateInput } from './domain/validation';
 import { fetchRequiredRates, ExchangeRateError } from './services/exchange-rate';
 import { decodeSharePayload, encodeSharePayload } from './services/share-codec';
 import { buildMarkdown, downloadBlob, downloadQuoteImage } from './services/export';
-import { bindCurrencyComboboxes } from './ui/combobox';
+import { bindCurrencyComboboxes, closeCurrencyComboboxes } from './ui/combobox';
 import { fillForm, readForm, renderForm, updateFeeModeVisibility } from './ui/form';
 import { renderResult } from './ui/result';
 
@@ -129,6 +129,7 @@ calculatorForm?.addEventListener('change', (event) => {
   if (target.id === 'renewal-currency' || target.id === 'push-fee-currency') void loadRates();
   else { updateFeeModeVisibility(); updateAutoSalePrice(); void calculateAndRender(); }
 });
-document.querySelector('#reset-button')?.addEventListener('click', () => { fillForm(defaultInput()); void loadRates(); setAlert('', ''); });
+// 复位时先关掉弹层：弹层若还开着，focusout/mousedown 之类的手势会在 fillForm 之后把旧高亮项写回币种。
+document.querySelector('#reset-button')?.addEventListener('click', () => { closeCurrencyComboboxes(document); fillForm(defaultInput()); void loadRates(); setAlert('', ''); });
 if (!shared) fillForm(defaultInput());
 void loadRates();
