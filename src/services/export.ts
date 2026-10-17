@@ -1,0 +1,86 @@
+import type { CalculatorInput, QuoteResult } from '../domain/types';
+
+const money = (value: number) => `¥${value.toFixed(2)}`;
+
+export function buildMarkdown(input: CalculatorInput, quote: QuoteResult, rateTime: string): string {
+  const config = [
+    ['商家', input.provider], ['产品', input.productName], ['特色', input.highlight], ['CPU', input.cpu], ['内存', input.memory],
+    ['存储', input.storage ? `${input.storage} ${input.storageUnit ?? 'GB'}` : ''], ['带宽', input.bandwidth ? `${input.bandwidth} ${input.bandwidthUnit ?? 'Mbps'}` : ''], ['流量', input.traffic ? `${input.traffic} ${input.trafficUnit ?? 'TB'}（${input.trafficDirection === 'single' ? '单向' : '双向'}，${input.trafficResetCycle === 'yearly' ? '每年重置' : input.trafficResetCycle === 'none' ? '不重置' : '每月重置'}）` : ''], ['位置', input.location],
+  ].filter(([, value]) => value);
+  const lines = ['## VPS 转售报价', ''];
+  if (config.length) {
+    lines.push('**VPS 信息**', ...config.map(([label, value]) => `- ${label}：${value}`), '');
+  }
+  lines.push(
+    '**价值信息**',
+    `- 交易日期：${input.tradeDate}`,
+    `- 到期日期：${input.expiryDate}`,
+    `- 剩余天数：${quote.remainingDays} 天`,
+    `- 理论剩余价值：${money(quote.theoreticalValue)}`,
+    `- 折损率：${quote.discountRate.toFixed(1)}%`,
+    `- 折损后建议价：${money(quote.adjustedValue)}`,
+    '',
+    '**报价明细**',
+    `- 剩余价值：${money(quote.baseSalePrice)}`,
+    `- 手动溢价：${money(quote.premiumAmount)}`,
+    `- Push 手续费：${money(quote.pushFeeCny)}`,
+    `- 卖家承担比例：${quote.sellerFeeRate.toFixed(1)}%`,
+    `- 计入总价的手续费：${money(quote.includedPushFee)}`,
+    `- 买家总支付：${money(quote.buyerTotal)}`,
+    `- 卖家到手价：${money(quote.sellerNet)}`,
+    `- 溢价：${quote.premium >= 0 ? '+' : ''}${money(quote.premium)}（${quote.premiumRate.toFixed(1)}%）`,
+    '',
+    `- 汇率更新时间：${new Date(rateTime).toLocaleString('zh-CN')}`,
+  );
+  return lines.join('\n');
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export async function downloadQuoteImage(input: CalculatorInput, quote: QuoteResult, rateTime: string): Promise<void> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 1100;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('当前浏览器不支持图片导出');
+  context.fillStyle = '#f4f7fa';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = '#172435'; context.fillRect(48, 48, 1104, 220);
+  context.fillStyle = '#d6e97d'; context.font = '700 24px sans-serif'; context.fillText('VPS RESALE RESULT', 86, 96);
+  context.fillStyle = '#fff'; context.font = '700 42px sans-serif'; context.fillText(input.productName || 'VPS 转售报价', 86, 150);
+  context.font = '22px sans-serif'; context.fillStyle = '#b7c3cf'; context.fillText([input.provider, input.location].filter(Boolean).join(' · ') || '单台 VPS', 86, 194);
+  context.fillStyle = '#172435'; context.fillRect(48, 294, 1104, 150);
+  context.fillStyle = '#7d8c9a'; context.font = '20px sans-serif'; context.fillText('买家总支付 / 卖家到手价', 86, 334);
+  context.fillStyle = '#fff'; context.font = '700 54px sans-serif'; context.fillText(money(quote.totalPrice), 86, 408);
+  const valueRows: Array<[string, string]> = [['理论剩余价值', money(quote.theoreticalValue)], ['折损后建议价', money(quote.adjustedValue)], ['剩余周期', `${quote.remainingDays} 天`]];
+  const feeRows: Array<[string, string]> = [['手动溢价', money(quote.premiumAmount)], ['Push 手续费', money(quote.pushFeeCny)], ['计入总价手续费', money(quote.includedPushFee)]];
+  const drawTable = (title: string, rows: Array<[string, string]>, top: number): number => {
+    const rowHeight = 58;
+    const tableHeight = 48 + rows.length * rowHeight;
+    context.fillStyle = '#ffffff'; context.fillRect(72, top, 1056, tableHeight);
+    context.strokeStyle = '#cbd5df'; context.lineWidth = 2; context.strokeRect(72, top, 1056, tableHeight);
+    context.fillStyle = '#e9eef3'; context.fillRect(73, top + 1, 1054, 46);
+    context.fillStyle = '#172435'; context.font = '700 22px sans-serif'; context.fillText(title, 92, top + 31);
+    rows.forEach(([label, value], index) => {
+      const rowTop = top + 48 + index * rowHeight;
+      context.strokeStyle = '#d9e1e8'; context.lineWidth = 1; context.beginPath(); context.moveTo(72, rowTop); context.lineTo(1128, rowTop); context.stroke();
+      context.fillStyle = '#64748b'; context.font = '21px sans-serif'; context.fillText(label, 92, rowTop + 36);
+      context.fillStyle = '#172435'; context.font = '700 22px sans-serif'; context.fillText(value, 760, rowTop + 36);
+    });
+    context.beginPath(); context.moveTo(700, top + 48); context.lineTo(700, top + tableHeight); context.stroke();
+    return top + tableHeight;
+  };
+  const valueBottom = drawTable('价值分析', valueRows, 478);
+  drawTable('费用明细', feeRows, valueBottom + 24);
+  context.fillStyle = '#64748b'; context.font = '18px sans-serif'; context.fillText(`交易日 ${input.tradeDate} · 到期日 ${input.expiryDate} · 汇率更新 ${new Date(rateTime).toLocaleString('zh-CN')}`, 72, 1014);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('图片生成失败');
+  downloadBlob(blob, `vps报价-${Date.now()}.png`);
+}

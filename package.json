@@ -1,0 +1,21 @@
+{
+  "name": "vps-resale-value-calculator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:pages": "bash scripts/deploy-pages.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.2",
+    "vitest": "^3.1.1"
+  }
+}
