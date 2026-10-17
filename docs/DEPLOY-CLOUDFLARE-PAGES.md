@@ -120,6 +120,8 @@ npm run deploy:pages -- --help
 
 可选：在 **Variables** 中配置 `CLOUDFLARE_PAGES_PROJECT` 覆盖默认项目名 `vps-value-calculator`。
 
+> **生产分支必须与 workflow 一致。** Cloudflare 判定生产部署的唯一依据是「部署分支 == 项目的 `production_branch`」，不一致时会被静默归为 Preview：Action 成功，线上却一直停在旧版本。本项目要求把 Pages 项目的生产分支设为 `main`（Direct Upload 项目需通过 API 的 `PATCH /accounts/{account_id}/pages/projects/{project}` 修改 `production_branch`，控制台对这类项目不显示该字段）；若用 Variables 换了项目名，新项目同样要设为 `main`。workflow 在部署后会校验新部署是否真的成为生产版本，不一致直接失败。另外 `workflow_dispatch` 从任何分支触发都会按生产发布，不要拿它试跑未完成的改动。
+
 创建 Token 的路径：Dashboard → **My Profile → API Tokens → Create Token**，选择 **Edit Cloudflare Workers** 模板，或自定义权限并授予账户级 **Cloudflare Pages: Edit**。Token 只写入 GitHub Secrets，不要提交到仓库。
 
 ## 五、绑定自定义域名
