@@ -155,18 +155,7 @@ npx wrangler login
 
 部署本身成功并不代表汇率接口可用。页面会在浏览器中请求 Frankfurter；若网络、CORS 或公共接口限流导致请求失败，页面会阻止报价计算。检查浏览器网络访问和 Frankfurter 服务状态后重试。
 
-## 七、可选：部署到 Cloudflare Worker 静态资源
-
-项目也提供了 [wrangler.jsonc](../wrangler.jsonc)，将 `dist/` 配置为静态资源目录并启用 SPA fallback：
-
-```bash
-npm run build
-npx wrangler deploy
-```
-
-Pages Direct Upload 和 Worker Static Assets 共用同一个 `dist/` 构建产物，但它们是两种独立的 Cloudflare 部署方式。
-
-## 安全提示
+## 七、安全提示
 
 - 不要把 `CLOUDFLARE_API_TOKEN`、账户密钥或其他凭据提交到 Git。
 - 分享链接中的报价和 VPS 配置编码在 URL fragment 中，拿到链接的人可以读取这些内容。

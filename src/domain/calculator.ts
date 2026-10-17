@@ -22,8 +22,13 @@ export function calculateQuote(input: CalculatorInput, rates: ExchangeRateSnapsh
   const sellerFeeRate = input.feeMode === 'buyer' ? 0 : input.feeMode === 'seller' ? 100 : input.sellerFeeRate;
   const includedPushFee = pushFeeCny * (1 - sellerFeeRate / 100);
   const premiumAmount = input.premiumAmount ?? 0;
-  const totalPrice = input.salePrice + premiumAmount + includedPushFee;
-  const premium = totalPrice - adjustedValue;
+  // 余额三件套在这里一次性归一化进快照，渲染层不再回读 input，也不重复「缺失按 0」的口径。
+  const balanceAmount = input.accountBalance ?? 0;
+  const balanceCny = balanceAmount * rates.renewalToCny;
+  // 余额是随账号转走的等值现金，进双方总金额，但不进售价溢价，因此溢价由不含余额的基价推导。
+  const basePrice = input.salePrice + premiumAmount + includedPushFee;
+  const totalPrice = basePrice + balanceCny;
+  const premium = basePrice - adjustedValue;
   const premiumRate = adjustedValue > 0 ? premium / adjustedValue * 100 : 0;
   return {
     remainingDays,
@@ -37,6 +42,9 @@ export function calculateQuote(input: CalculatorInput, rates: ExchangeRateSnapsh
     includedPushFee,
     baseSalePrice: input.salePrice,
     premiumAmount,
+    balanceCny,
+    balanceAmount,
+    balanceCurrency: input.renewalCurrency,
     totalPrice,
     buyerTotal: totalPrice,
     sellerNet: totalPrice,

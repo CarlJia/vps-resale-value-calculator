@@ -2,7 +2,7 @@ import type { CalculatorInput, SharePayload } from '../domain/types';
 
 const MAX_FRAGMENT_LENGTH = 12000;
 const ALLOWED_KEYS: Array<keyof CalculatorInput> = [
-  'renewalAmount', 'renewalCurrency', 'paymentCycleMonths', 'tradeDate', 'expiryDate', 'salePrice', 'premiumAmount', 'discountRate',
+  'renewalAmount', 'renewalCurrency', 'paymentCycleMonths', 'tradeDate', 'expiryDate', 'salePrice', 'premiumAmount', 'accountBalance', 'discountRate',
   'pushFeeAmount', 'pushFeeCurrency', 'feeMode', 'sellerFeeRate', 'provider', 'productName', 'highlight', 'cpu',
   'memory', 'memoryUnit', 'storage', 'storageUnit', 'bandwidth', 'bandwidthUnit', 'traffic', 'trafficUnit', 'trafficResetCycle', 'trafficDirection', 'location',
 ];
@@ -37,7 +37,7 @@ export function decodeSharePayload(hash: string): SharePayload | null {
     const input = parsed.input as Partial<CalculatorInput>;
     const unknown = Object.keys(input).some((key) => !ALLOWED_KEYS.includes(key as keyof CalculatorInput));
     if (unknown) return null;
-    for (const key of ALLOWED_KEYS) if (!['premiumAmount', 'memoryUnit', 'storageUnit', 'bandwidthUnit', 'trafficUnit', 'trafficResetCycle', 'trafficDirection'].includes(key) && !(key in input)) return null;
+    for (const key of ALLOWED_KEYS) if (!['premiumAmount', 'accountBalance', 'memoryUnit', 'storageUnit', 'bandwidthUnit', 'trafficUnit', 'trafficResetCycle', 'trafficDirection'].includes(key) && !(key in input)) return null;
     return { v: 1, input: input as CalculatorInput };
   } catch {
     return null;

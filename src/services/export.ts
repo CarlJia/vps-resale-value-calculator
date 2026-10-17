@@ -1,36 +1,49 @@
+import { formatCny, formatCnyWithOriginal } from '../domain/money';
 import type { CalculatorInput, QuoteResult } from '../domain/types';
-
-const money = (value: number) => `¥${value.toFixed(2)}`;
 
 export function buildMarkdown(input: CalculatorInput, quote: QuoteResult, rateTime: string): string {
   const config = [
     ['商家', input.provider], ['产品', input.productName], ['特色', input.highlight], ['CPU', input.cpu], ['内存', input.memory],
     ['存储', input.storage ? `${input.storage} ${input.storageUnit ?? 'GB'}` : ''], ['带宽', input.bandwidth ? `${input.bandwidth} ${input.bandwidthUnit ?? 'Mbps'}` : ''], ['流量', input.traffic ? `${input.traffic} ${input.trafficUnit ?? 'TB'}（${input.trafficDirection === 'single' ? '单向' : '双向'}，${input.trafficResetCycle === 'yearly' ? '每年重置' : input.trafficResetCycle === 'none' ? '不重置' : '每月重置'}）` : ''], ['位置', input.location],
   ].filter(([, value]) => value);
-  const lines = ['## VPS 转售报价', ''];
+  // 顶部先抛一个醒目的买家总价，再切到明细：接收方先看到「该付多少」，再回头理解构成。
+  const lines: string[] = [
+    '## VPS 转售报价',
+    '',
+    `> ### 💰 买家总支付：**${formatCny(quote.buyerTotal)}**`,
+    '>',
+    `> 卖家到手价同为 **${formatCny(quote.sellerNet)}**（双方金额相等 · 剩余价值 + 手动溢价 + 计入总价的手续费 + 账户余额）。`,
+    '',
+  ];
+  // 三张表格对应原来的三个块：信息 / 价值 / 明细。表头写在数据之前，方便阅读器渲染对齐。
+  const tableDivider = '| --- | --- |';
   if (config.length) {
-    lines.push('**VPS 信息**', ...config.map(([label, value]) => `- ${label}：${value}`), '');
+    lines.push('### VPS 信息', '', '| 项目 | 内容 |', tableDivider);
+    for (const [label, value] of config) lines.push(`| ${label} | ${value} |`);
+    lines.push('');
   }
   lines.push(
-    '**价值信息**',
-    `- 交易日期：${input.tradeDate}`,
-    `- 到期日期：${input.expiryDate}`,
-    `- 剩余天数：${quote.remainingDays} 天`,
-    `- 理论剩余价值：${money(quote.theoreticalValue)}`,
-    `- 折损率：${quote.discountRate.toFixed(1)}%`,
-    `- 折损后建议价：${money(quote.adjustedValue)}`,
+    '### 价值信息', '', '| 项目 | 数值 |', tableDivider,
+    `| 交易日期 | ${input.tradeDate} |`,
+    `| 到期日期 | ${input.expiryDate} |`,
+    `| 剩余天数 | ${quote.remainingDays} 天 |`,
+    `| 理论剩余价值 | ${formatCny(quote.theoreticalValue)} |`,
+    `| 折损率 | ${quote.discountRate.toFixed(1)}% |`,
+    `| 折损后建议价 | ${formatCny(quote.adjustedValue)} |`,
     '',
-    '**报价明细**',
-    `- 剩余价值：${money(quote.baseSalePrice)}`,
-    `- 手动溢价：${money(quote.premiumAmount)}`,
-    `- Push 手续费：${money(quote.pushFeeCny)}`,
-    `- 卖家承担比例：${quote.sellerFeeRate.toFixed(1)}%`,
-    `- 计入总价的手续费：${money(quote.includedPushFee)}`,
-    `- 买家总支付：${money(quote.buyerTotal)}`,
-    `- 卖家到手价：${money(quote.sellerNet)}`,
-    `- 溢价：${quote.premium >= 0 ? '+' : ''}${money(quote.premium)}（${quote.premiumRate.toFixed(1)}%）`,
+    '### 报价明细', '', '| 项目 | 金额 |', tableDivider,
+    `| 剩余价值 | ${formatCny(quote.baseSalePrice)} |`,
+    `| 手动溢价 | ${formatCny(quote.premiumAmount)} |`,
+    `| Push 手续费 | ${formatCny(quote.pushFeeCny)} |`,
+    `| 卖家承担比例 | ${quote.sellerFeeRate.toFixed(1)}% |`,
+    `| 计入总价的手续费 | ${formatCny(quote.includedPushFee)} |`,
+    `| 账户余额 | ${formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)} |`,
+    // 明细里再把买家总价整行加粗，与顶部摘要呼应，避免只有顶部一眼看不到的「¥xx」。
+    `| **买家总支付** | **${formatCny(quote.buyerTotal)}** |`,
+    `| 卖家到手价 | ${formatCny(quote.sellerNet)} |`,
+    `| 溢价 | ${quote.premium >= 0 ? '+' : ''}${formatCny(quote.premium)}（${quote.premiumRate.toFixed(1)}%）|`,
     '',
-    `- 汇率更新时间：${new Date(rateTime).toLocaleString('zh-CN')}`,
+    `> 汇率更新时间：${new Date(rateTime).toLocaleString('zh-CN')}`,
   );
   return lines.join('\n');
 }
@@ -58,9 +71,9 @@ export async function downloadQuoteImage(input: CalculatorInput, quote: QuoteRes
   context.font = '22px sans-serif'; context.fillStyle = '#b7c3cf'; context.fillText([input.provider, input.location].filter(Boolean).join(' · ') || '单台 VPS', 86, 194);
   context.fillStyle = '#172435'; context.fillRect(48, 294, 1104, 150);
   context.fillStyle = '#7d8c9a'; context.font = '20px sans-serif'; context.fillText('买家总支付 / 卖家到手价', 86, 334);
-  context.fillStyle = '#fff'; context.font = '700 54px sans-serif'; context.fillText(money(quote.totalPrice), 86, 408);
-  const valueRows: Array<[string, string]> = [['理论剩余价值', money(quote.theoreticalValue)], ['折损后建议价', money(quote.adjustedValue)], ['剩余周期', `${quote.remainingDays} 天`]];
-  const feeRows: Array<[string, string]> = [['手动溢价', money(quote.premiumAmount)], ['Push 手续费', money(quote.pushFeeCny)], ['计入总价手续费', money(quote.includedPushFee)]];
+  context.fillStyle = '#fff'; context.font = '700 54px sans-serif'; context.fillText(formatCny(quote.totalPrice), 86, 408);
+  const valueRows: Array<[string, string]> = [['理论剩余价值', formatCny(quote.theoreticalValue)], ['折损后建议价', formatCny(quote.adjustedValue)], ['剩余周期', `${quote.remainingDays} 天`]];
+  const feeRows: Array<[string, string]> = [['手动溢价', formatCny(quote.premiumAmount)], ['Push 手续费', formatCny(quote.pushFeeCny)], ['计入总价手续费', formatCny(quote.includedPushFee)], ['账户余额', formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)]];
   const drawTable = (title: string, rows: Array<[string, string]>, top: number): number => {
     const rowHeight = 58;
     const tableHeight = 48 + rows.length * rowHeight;
@@ -78,8 +91,11 @@ export async function downloadQuoteImage(input: CalculatorInput, quote: QuoteRes
     return top + tableHeight;
   };
   const valueBottom = drawTable('价值分析', valueRows, 478);
-  drawTable('费用明细', feeRows, valueBottom + 24);
-  context.fillStyle = '#64748b'; context.font = '18px sans-serif'; context.fillText(`交易日 ${input.tradeDate} · 到期日 ${input.expiryDate} · 汇率更新 ${new Date(rateTime).toLocaleString('zh-CN')}`, 72, 1014);
+  // 费用表加「账户余额」一行后：顶边 724 + 表头 48 + 4×58 = 底边 1004（比原来低 58px）。
+  // 页脚改为贴着费用表底边下移 34px（原写死 1014 会压到表格上），基线 1038，18px 字形下缘约 1042，
+  // 距画布下沿 1100 仍有 58px，既不重叠也不越界。
+  const feeBottom = drawTable('费用明细', feeRows, valueBottom + 24);
+  context.fillStyle = '#64748b'; context.font = '18px sans-serif'; context.fillText(`交易日 ${input.tradeDate} · 到期日 ${input.expiryDate} · 汇率更新 ${new Date(rateTime).toLocaleString('zh-CN')}`, 72, feeBottom + 34);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('图片生成失败');
   downloadBlob(blob, `vps报价-${Date.now()}.png`);

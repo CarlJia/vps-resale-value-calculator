@@ -10,6 +10,7 @@ export function validateInput(input: CalculatorInput): ValidationResult {
   if (!Number.isFinite(input.renewalAmount) || input.renewalAmount < 0) errors.push('续费金额必须是非负数字');
   if (!Number.isFinite(input.salePrice) || input.salePrice < 0) errors.push('剩余价值必须是非负数字');
   if (input.premiumAmount !== undefined && (!Number.isFinite(input.premiumAmount) || input.premiumAmount < 0)) errors.push('溢价必须是非负数字');
+  if (input.accountBalance !== undefined && (!Number.isFinite(input.accountBalance) || input.accountBalance < 0)) errors.push('账户余额必须是非负数字');
   if (!Number.isFinite(input.pushFeeAmount) || input.pushFeeAmount < 0) errors.push('Push 手续费必须是非负数字');
   if (!Number.isFinite(input.discountRate) || input.discountRate < 0 || input.discountRate > 100) errors.push('折损率必须在 0% 到 100% 之间');
   if (!Number.isFinite(input.sellerFeeRate) || input.sellerFeeRate < 0 || input.sellerFeeRate > 100) errors.push('卖家承担比例必须在 0% 到 100% 之间');
