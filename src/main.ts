@@ -15,7 +15,7 @@ const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 const shared = decodeSharePayload(window.location.hash);
 const defaultInput = (): CalculatorInput => ({
   renewalAmount: 10, renewalCurrency: 'USD', paymentCycleMonths: 12, tradeDate: isoDate(today), expiryDate: isoDate(new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())),
-  salePrice: 0, premiumAmount: 0, discountRate: 0, pushFeeAmount: 5, pushFeeCurrency: 'USD', feeMode: 'split', sellerFeeRate: 50,
+  salePrice: 0, premiumAmount: 0, accountBalance: 0, discountRate: 0, pushFeeAmount: 5, pushFeeCurrency: 'USD', feeMode: 'split', sellerFeeRate: 50,
   provider: '', productName: '', highlight: '', cpu: '', memory: '', memoryUnit: 'GB', storage: '', storageUnit: 'GB', bandwidth: '', bandwidthUnit: 'Mbps', traffic: '', trafficUnit: 'TB', trafficResetCycle: 'monthly', trafficDirection: 'double', location: '',
 });
 
@@ -56,6 +56,8 @@ function setAlert(message: string, kind: 'error' | 'success' | ''): void { if (a
 function updateRenewalCny(): void {
   if (!calculatorForm || !renewalCny) return;
   const input = shared?.input ?? readForm();
+  const balanceCurrency = document.querySelector<HTMLElement>('#balance-currency');
+  if (balanceCurrency) balanceCurrency.textContent = input.renewalCurrency;
   const rates = (window as Window & { __rates?: { renewalToCny: number } }).__rates;
   if (renewalCny) renewalCny.textContent = rates && Number.isFinite(input.renewalAmount) ? `¥${(input.renewalAmount * rates.renewalToCny).toFixed(2)}` : '等待汇率';
 }

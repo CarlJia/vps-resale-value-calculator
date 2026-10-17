@@ -43,3 +43,44 @@ describe('报价计算', () => {
     expect(() => calculateQuote({ ...input, paymentCycleMonths: Number.NaN }, rates)).toThrow('付款周期');
   });
 });
+
+describe('账户余额', () => {
+  it('余额缺省或为 0 时双方金额与不含余额时完全一致', () => {
+    const withoutBalance = calculateQuote(input, rates);
+    for (const accountBalance of [undefined, 0]) {
+      const result = calculateQuote({ ...input, accountBalance }, rates);
+      expect(result.balanceCny).toBe(0);
+      expect(result.totalPrice).toBeCloseTo(withoutBalance.totalPrice);
+      expect(result.buyerTotal).toBeCloseTo(withoutBalance.totalPrice);
+      expect(result.sellerNet).toBeCloseTo(withoutBalance.totalPrice);
+      expect(result.premium).toBeCloseTo(withoutBalance.premium);
+      expect(result.adjustedValue).toBeCloseTo(withoutBalance.adjustedValue);
+    }
+  });
+
+  it('余额为正时双方金额一起多出余额折算值，溢价与折损后建议价都不变', () => {
+    const withoutBalance = calculateQuote(input, rates);
+    const result = calculateQuote({ ...input, accountBalance: 10 }, rates);
+
+    expect(result.balanceCny).toBeCloseTo(70);
+    expect(result.totalPrice).toBeCloseTo(withoutBalance.totalPrice + 70);
+    expect(result.buyerTotal).toBe(result.sellerNet);
+    expect(result.premium).toBeCloseTo(withoutBalance.premium);
+    expect(result.premiumRate).toBeCloseTo(withoutBalance.premiumRate);
+    expect(result.adjustedValue).toBeCloseTo(withoutBalance.adjustedValue);
+  });
+
+  it('余额为负或非数字时给出中文校验提示', () => {
+    expect(() => calculateQuote({ ...input, accountBalance: -1 }, rates)).toThrow('账户余额必须是非负数字');
+    expect(() => calculateQuote({ ...input, accountBalance: Number.NaN }, rates)).toThrow('账户余额必须是非负数字');
+  });
+
+  it('余额按续费汇率折算，手续费币种的变化不影响它', () => {
+    const twdRates: ExchangeRateSnapshot = { renewalToCny: 0.22, pushToCny: 7, fetchedAt: '2026-01-01T00:00:00Z' };
+    const byRenewal = calculateQuote({ ...input, renewalCurrency: 'TWD', accountBalance: 100 }, twdRates);
+    const shiftedPush = calculateQuote({ ...input, renewalCurrency: 'TWD', pushFeeCurrency: 'EUR', accountBalance: 100 }, { ...twdRates, pushToCny: 7.8 });
+
+    expect(byRenewal.balanceCny).toBeCloseTo(22);
+    expect(shiftedPush.balanceCny).toBeCloseTo(byRenewal.balanceCny);
+  });
+});

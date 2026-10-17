@@ -11,6 +11,7 @@ export interface CalculatorInput {
   expiryDate: string;
   salePrice: number;
   premiumAmount?: number;
+  accountBalance?: number;
   discountRate: number;
   pushFeeAmount: number;
   pushFeeCurrency: CurrencyCode;
@@ -51,6 +52,7 @@ export interface QuoteResult {
   includedPushFee: number;
   baseSalePrice: number;
   premiumAmount: number;
+  balanceCny: number;
   totalPrice: number;
   buyerTotal: number;
   sellerNet: number;

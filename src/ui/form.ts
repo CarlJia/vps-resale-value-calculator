@@ -21,6 +21,7 @@ export function renderForm(): string {
     </section>
     <section class="form-section"><div class="section-heading"><div><p class="eyebrow">02 / 成交报价</p><h2>售价与 Push 手续费</h2></div><span class="section-note">总价包含未由卖家承担的手续费</span></div>
       <div class="field-grid two">${field('sale-price', '剩余价值（人民币，自动）', 'number', '等待汇率和日期', 'min="0" step="0.01" readonly required')}${field('premium-amount', '溢价（人民币）', 'number', '例如 20', 'min="0" step="0.01" value="0" required')}</div>
+      <label class="field" for="account-balance"><span>账户余额（原币）· 币种跟随续费币种 <b id="balance-currency">USD</b></span><input id="account-balance" type="number" min="0" step="0.01" value="0" placeholder="例如 10"></label>
       ${field('push-fee-amount', 'Push 手续费', 'number', '例如 5', 'min="0" step="0.01" value="0" required')}
       <div class="field-grid two">${currencyField('push-fee-currency', '手续费币种')}<label class="field" for="fee-mode"><span>手续费承担方式</span><select id="fee-mode"><option value="buyer">买家承担（卖家 0%）</option><option value="seller">卖家承担（卖家 100%）</option><option value="split" selected>按比例承担</option></select></label></div>
       <div id="seller-rate-wrap">${field('seller-fee-rate', '卖家承担比例 (%)', 'number', '例如 50', 'min="0" max="100" step="0.1" value="50" required')}</div>
@@ -46,7 +47,7 @@ export function readForm(): CalculatorInput {
   const feeMode = get('fee-mode') as FeeMode;
   return {
     renewalAmount: Number(get('renewal-amount')), renewalCurrency: currency('renewal-currency'), paymentCycleMonths: Number(get('payment-cycle')),
-    tradeDate: get('trade-date'), expiryDate: get('expiry-date'), salePrice: Number(get('sale-price')), premiumAmount: Number(get('premium-amount')), discountRate: Number(get('discount-rate')),
+    tradeDate: get('trade-date'), expiryDate: get('expiry-date'), salePrice: Number(get('sale-price')), premiumAmount: Number(get('premium-amount')), accountBalance: Number(get('account-balance')), discountRate: Number(get('discount-rate')),
     pushFeeAmount: Number(get('push-fee-amount')), pushFeeCurrency: currency('push-fee-currency'), feeMode,
     sellerFeeRate: feeMode === 'buyer' ? 0 : feeMode === 'seller' ? 100 : Number(get('seller-fee-rate')),
     provider: get('provider'), productName: get('product-name'), highlight: get('highlight'), cpu: get('cpu'), memory: get('memory'),
@@ -58,7 +59,7 @@ export function fillForm(input: CalculatorInput): void {
   const mapping: Record<string, string | number> = {
     'renewal-amount': input.renewalAmount, 'renewal-currency': input.renewalCurrency, 'payment-cycle': input.paymentCycleMonths,
     'trade-date': input.tradeDate, 'expiry-date': input.expiryDate, 'discount-rate': input.discountRate, 'sale-price': input.salePrice,
-    'premium-amount': input.premiumAmount ?? 0, 'push-fee-amount': input.pushFeeAmount, 'push-fee-currency': input.pushFeeCurrency, 'fee-mode': input.feeMode, 'seller-fee-rate': input.sellerFeeRate,
+    'premium-amount': input.premiumAmount ?? 0, 'account-balance': input.accountBalance ?? 0, 'push-fee-amount': input.pushFeeAmount, 'push-fee-currency': input.pushFeeCurrency, 'fee-mode': input.feeMode, 'seller-fee-rate': input.sellerFeeRate,
     provider: input.provider, 'product-name': input.productName, highlight: input.highlight, cpu: input.cpu, memory: input.memory,
     storage: input.storage, 'storage-unit': input.storageUnit ?? 'GB', bandwidth: input.bandwidth, 'bandwidth-unit': input.bandwidthUnit ?? 'Mbps', traffic: input.traffic, 'traffic-unit': input.trafficUnit ?? 'TB', 'traffic-reset-cycle': input.trafficResetCycle ?? 'monthly', 'traffic-direction': input.trafficDirection ?? 'double', location: input.location, 'memory-unit': input.memoryUnit ?? 'GB',
   };
