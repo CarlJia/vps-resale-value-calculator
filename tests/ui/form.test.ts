@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { calculateQuote } from '../../src/domain/calculator';
 import type { CalculatorInput } from '../../src/domain/types';
 import { validateInput } from '../../src/domain/validation';
 import { bindCurrencyComboboxes } from '../../src/ui/combobox';
@@ -89,5 +90,30 @@ describe('表单里的两个币种字段', () => {
     expect(triggerOf('renewal-currency').value).toBe('TWD');
     expect(triggerOf('renewal-currency').getAttribute('aria-label')).toContain('TWD');
     expect(readForm().renewalCurrency).toBe('TWD');
+  });
+});
+
+describe('账户余额的读取方向', () => {
+  const rates = { renewalToCny: 7, pushToCny: 7, fetchedAt: '2026-10-17T00:00:00.000Z' };
+
+  it('表单里填的余额被读进输入，并折算进双方总金额', () => {
+    mountForm();
+    const balance = document.getElementById('account-balance') as HTMLInputElement;
+    expect(readForm().accountBalance).toBe(0);
+
+    balance.value = '12.5';
+    const read = readForm();
+    expect(read.accountBalance).toBe(12.5);
+
+    const quote = calculateQuote(read, rates);
+    expect(quote.balanceCny).toBeCloseTo(87.5);
+    expect(quote.balanceAmount).toBe(12.5);
+    expect(quote.balanceCurrency).toBe('USD');
+    expect(quote.totalPrice).toBeCloseTo(205);
+    expect(quote.buyerTotal).toBe(quote.totalPrice);
+    expect(quote.sellerNet).toBe(quote.totalPrice);
+
+    // 余额只进总金额、不进溢价：清零后溢价不变。
+    expect(calculateQuote({ ...read, accountBalance: 0 }, rates).premium).toBeCloseTo(quote.premium);
   });
 });

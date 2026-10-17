@@ -53,6 +53,8 @@ export interface QuoteResult {
   baseSalePrice: number;
   premiumAmount: number;
   balanceCny: number;
+  balanceAmount: number;
+  balanceCurrency: CurrencyCode;
   totalPrice: number;
   buyerTotal: number;
   sellerNet: number;

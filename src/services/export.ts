@@ -25,7 +25,7 @@ export function buildMarkdown(input: CalculatorInput, quote: QuoteResult, rateTi
     `- Push 手续费：${formatCny(quote.pushFeeCny)}`,
     `- 卖家承担比例：${quote.sellerFeeRate.toFixed(1)}%`,
     `- 计入总价的手续费：${formatCny(quote.includedPushFee)}`,
-    `- 账户余额：${formatCnyWithOriginal(quote.balanceCny, input.accountBalance ?? 0, input.renewalCurrency)}`,
+    `- 账户余额：${formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)}`,
     `- 买家总支付：${formatCny(quote.buyerTotal)}`,
     `- 卖家到手价：${formatCny(quote.sellerNet)}`,
     `- 溢价：${quote.premium >= 0 ? '+' : ''}${formatCny(quote.premium)}（${quote.premiumRate.toFixed(1)}%）`,
@@ -60,7 +60,7 @@ export async function downloadQuoteImage(input: CalculatorInput, quote: QuoteRes
   context.fillStyle = '#7d8c9a'; context.font = '20px sans-serif'; context.fillText('买家总支付 / 卖家到手价', 86, 334);
   context.fillStyle = '#fff'; context.font = '700 54px sans-serif'; context.fillText(formatCny(quote.totalPrice), 86, 408);
   const valueRows: Array<[string, string]> = [['理论剩余价值', formatCny(quote.theoreticalValue)], ['折损后建议价', formatCny(quote.adjustedValue)], ['剩余周期', `${quote.remainingDays} 天`]];
-  const feeRows: Array<[string, string]> = [['手动溢价', formatCny(quote.premiumAmount)], ['Push 手续费', formatCny(quote.pushFeeCny)], ['计入总价手续费', formatCny(quote.includedPushFee)], ['账户余额', formatCnyWithOriginal(quote.balanceCny, input.accountBalance ?? 0, input.renewalCurrency)]];
+  const feeRows: Array<[string, string]> = [['手动溢价', formatCny(quote.premiumAmount)], ['Push 手续费', formatCny(quote.pushFeeCny)], ['计入总价手续费', formatCny(quote.includedPushFee)], ['账户余额', formatCnyWithOriginal(quote.balanceCny, quote.balanceAmount, quote.balanceCurrency)]];
   const drawTable = (title: string, rows: Array<[string, string]>, top: number): number => {
     const rowHeight = 58;
     const tableHeight = 48 + rows.length * rowHeight;

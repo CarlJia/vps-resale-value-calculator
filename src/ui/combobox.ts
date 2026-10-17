@@ -10,6 +10,9 @@ export interface CurrencyComboboxConfig {
 const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (char) => HTML_ESCAPES[char] ?? char);
 
+/** 触发框的可读名称：初始渲染与程序化写回都必须经过这里，否则两处文案会分叉。 */
+const triggerAriaLabel = (label: string, value: string) => `${label}，已选 ${value}`;
+
 /**
  * 渲染一个币种下拉字段，返回整个 `.field` 块：标签、只读触发输入框与弹层容器。
  *
@@ -20,7 +23,7 @@ export function renderCurrencyCombobox({ id, label, value, options }: CurrencyCo
   const listId = `${id}-listbox`;
   return `<div class="field combobox-field" data-combobox="${id}">
       <label class="field-label" for="${id}"><span>${escapeHtml(label)}</span></label>
-      <input id="${id}" class="combobox-trigger" type="text" value="${escapeHtml(value)}" readonly required aria-haspopup="listbox" aria-label="${escapeHtml(`${label}，已选 ${value}`)}" autocomplete="off">
+      <input id="${id}" class="combobox-trigger" type="text" value="${escapeHtml(value)}" readonly required aria-haspopup="listbox" aria-label="${escapeHtml(triggerAriaLabel(label, value))}" autocomplete="off">
       <div class="combobox-popup hidden" id="${id}-popup">
         <input id="${id}-search" class="combobox-search" type="text" role="combobox" aria-expanded="false" aria-controls="${listId}" aria-label="搜索币种" placeholder="输入代码或中文名" autocomplete="off">
         <ul class="combobox-listbox" id="${listId}" role="listbox" aria-label="${escapeHtml(label)}">
@@ -41,7 +44,7 @@ export function closeCurrencyComboboxes(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('[data-combobox]').forEach((container) => closeCombobox(container, false));
 }
 
-/** 程序化写回币种（fillForm 复位、分享链接还原）后，把触发框的可读名称同步成当前代码。 */
+/** 程序化写回币种（如 fillForm 复位）后，把触发框的可读名称同步成当前代码。 */
 export function syncCurrencyComboboxLabels(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('[data-combobox]').forEach((container) => syncTriggerLabel(container));
 }
@@ -50,7 +53,7 @@ function syncTriggerLabel(container: HTMLElement): void {
   const trigger = container.querySelector<HTMLInputElement>('.combobox-trigger');
   if (!trigger) return;
   const labelText = container.querySelector('.field-label')?.textContent ?? '';
-  trigger.setAttribute('aria-label', `${labelText}，已选 ${trigger.value}`);
+  trigger.setAttribute('aria-label', triggerAriaLabel(labelText, trigger.value));
 }
 
 function closeCombobox(container: HTMLElement, focusTrigger: boolean): void {
@@ -141,7 +144,8 @@ function bindCombobox(container: HTMLElement): void {
   // 输入法组合期：确认候选字的回车必须留给输入法，否则会把当时高亮的币种写回字段。
   search.addEventListener('compositionstart', () => { composing = true; });
   search.addEventListener('compositionend', () => { composing = false; applyFilter(search.value); });
-  search.addEventListener('input', () => { if (!composing) applyFilter(search.value); });
+  // 搜索框不是表单字段：筛选文本若冒泡到表单的 input 监听，每敲一个字都会重算并重建整个结果区。
+  search.addEventListener('input', (event) => { event.stopPropagation(); if (!composing) applyFilter(search.value); });
   search.addEventListener('keydown', (event) => {
     if (composing || event.isComposing) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

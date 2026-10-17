@@ -29,10 +29,10 @@ const commitCurrency = (id: string, query: string) => {
   search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 };
 
-async function boot(hash = '') {
+async function boot(hash = '', fetchImpl?: () => Promise<Response>) {
   window.location.hash = hash;
   document.body.innerHTML = '<div id="app"></div>';
-  const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(ratesResponse(7, 'USD')));
+  const fetchMock = vi.fn().mockImplementation(fetchImpl ?? (() => Promise.resolve(ratesResponse(7, 'USD'))));
   vi.stubGlobal('fetch', fetchMock);
   vi.resetModules();
   await import('../src/main');
@@ -119,6 +119,34 @@ describe('表单与汇率的接线', () => {
     expect(document.querySelector('#renewal-currency')).toBeNull();
     expect(document.body.textContent).toContain('东京套餐');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('分享视图的汇率失败占位只给分享页能做的事，并把失败原因写进占位', async () => {
+    await boot(encodeSharePayload(input), () => Promise.resolve(new Response('invalid currency: USD', { status: 422 })));
+
+    await vi.waitFor(() => expect(resultContainer().textContent).toContain('汇率获取失败'));
+    const text = resultContainer().textContent ?? '';
+    expect(text).toContain('请稍后重新打开此链接');
+    expect(text).toContain('请换一个币种'); // 失败原因不再只走分享页不存在的 #alert
+    expect(text).not.toContain('点击重置');
+    expect(document.querySelector('#alert')).toBeNull();
+  });
+
+  it('汇率成功但输入无效时，结果区不再停在加载占位', async () => {
+    const fetchMock = await boot();
+    await settle(fetchMock);
+
+    const cycle = document.getElementById('payment-cycle') as HTMLInputElement;
+    cycle.value = '';
+    cycle.dispatchEvent(new Event('input', { bubbles: true }));
+
+    fetchMock.mockClear();
+    commitCurrency('renewal-currency', 'tw');
+
+    await vi.waitFor(() => expect(resultContainer().textContent).toContain('输入待修正'));
+    expect(resultContainer().textContent).toContain('付款周期必须是大于 0 的数字');
+    expect(resultContainer().textContent).not.toContain('正在获取汇率');
+    expect(resultContainer().querySelector('.result-panel')).toBeNull();
   });
 
   it('重置会关掉开着的币种弹层，并把余额与续费币种恢复默认', async () => {
